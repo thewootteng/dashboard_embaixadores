@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - Embaixadores Saga SENAI 2026</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --blue: #1a4b9f;
+      --orange: #ef5e31;
+      --green: #52AE32;
+      --sky: #008BD2;
+      --mint: #6CC2BA;
+      --bg: #f7f9fc;
+      --card: #ffffff;
+      --text: #16324f;
+      --muted: #68829e;
+      --line: #dbe5f0;
+      --shadow: 0 12px 30px rgba(18, 57, 110, .08);
+    }
+
+    * {
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      color: var(--text);
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at top right, rgba(239, 94, 49, .12), transparent 30%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 100%);
+    }
+
+    .glass {
+      background: var(--card);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(26, 75, 159, .10);
+      box-shadow: var(--shadow);
+    }
+
+    .hover-card {
+      transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    }
+
+    .hover-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(239, 94, 49, .34);
+      box-shadow:
+        0 16px 36px rgba(18, 57, 110, .12),
+        0 0 0 4px rgba(239, 94, 49, .08);
+    }
+
+    .sidebar-btn {
+      transition: transform .2s ease, background-color .2s ease, color .2s ease;
+    }
+
+    .sidebar-btn:hover,
+    .sidebar-btn.active {
+      background: rgba(239, 94, 49, .12);
+      color: var(--orange);
+      transform: scale(1.05);
+      border-color: rgba(239, 94, 49, .28);
+    }
+
+    .table-row {
+      transition: background-color .2s ease;
+    }
+
+    .table-row:hover {
+      background: #fbfdff;
+    }
+
+    select option {
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(26, 75, 159, .24);
+      border-radius: 999px;
+    }
+
+    input,
+    select,
+    button {
+      color: var(--text);
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: var(--blue);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="emptyState" class="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-md">
+    <div class="glass rounded-3xl p-10 text-center max-w-md mx-4">
+      <div class="w-20 h-20 rounded-3xl bg-[#fff8f4] mx-auto mb-6 flex items-center justify-center text-4xl text-[#ef5e31]">
+        <i class="fa-solid fa-database"></i>
+      </div>
+
+      <h2 class="text-2xl font-bold mb-3">Aguardando importação de dados</h2>
+      <p class="text-[#68829e] leading-relaxed mb-6">Faça upload do arquivo CSV da rede de embaixadores.</p>
+
+      <label class="cursor-pointer inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-[#ef5e31]/10 hover:bg-[#ef5e31]/20 text-[#1a4b9f] transition">
+        <i class="fa-solid fa-upload"></i>
+        <span>Carregar CSV</span>
+        <input type="file" id="csvFile" accept=".csv" hidden>
+      </label>
+    </div>
+  </div>
+
+  <div class="flex min-h-screen">
+    <aside class="w-[95px] border-r border-[#dbe5f0] bg-white/85 backdrop-blur-xl flex flex-col items-center py-6 gap-5">
+      <div class="w-14 h-14 rounded-2xl bg-[#1a4b9f] text-white flex items-center justify-center text-2xl font-bold">S</div>
+
+      <button data-section="overviewSection" title="Visão geral" class="sidebar-btn active glass w-14 h-14 rounded-2xl flex items-center justify-center text-xl">
+        <i class="fa-solid fa-chart-line"></i>
+      </button>
+
+      <button data-section="geoSection" title="Geografia" class="sidebar-btn glass w-14 h-14 rounded-2xl flex items-center justify-center text-xl">
+        <i class="fa-solid fa-earth-americas"></i>
+      </button>
+
+      <button data-section="specialitySection" title="Especialidades" class="sidebar-btn glass w-14 h-14 rounded-2xl flex items-center justify-center text-xl">
+        <i class="fa-solid fa-layer-group"></i>
+      </button>
+
+      <button data-section="tableSection" title="Tabela" class="sidebar-btn glass w-14 h-14 rounded-2xl flex items-center justify-center text-xl">
+        <i class="fa-solid fa-users"></i>
+      </button>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-8">
+      <header class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-8">
+        <div>
+          <h1 class="text-3xl md:text-4xl font-extrabold">Dashboard - Embaixadores Saga SENAI 2026</h1>
+          <p class="text-[#68829e] mt-2">Plataforma analítica para consulta, filtros e exportação da base.</p>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <label class="glass hover-card cursor-pointer rounded-2xl px-5 py-3 flex items-center gap-3">
+            <i class="fa-solid fa-upload text-[#ef5e31]"></i>
+            <span class="text-sm">Carregar CSV</span>
+            <input type="file" id="csvFileTop" accept=".csv" hidden>
+          </label>
+
+          <select id="regiaoFilter" class="glass rounded-2xl px-4 py-3 bg-transparent outline-none">
+            <option value="all">Todas as regiões</option>
+          </select>
+
+          <select id="ufFilter" class="glass rounded-2xl px-4 py-3 bg-transparent outline-none">
+            <option value="all">Todos os UFs</option>
+          </select>
+
+          <select id="unidadeFilter" class="glass rounded-2xl px-4 py-3 bg-transparent outline-none">
+            <option value="all">Todas as unidades</option>
+          </select>
+
+          <button id="exportCSV" class="glass rounded-2xl px-5 py-3 hover:bg-[#fff8f4]">
+            <i class="fa-solid fa-file-csv mr-2"></i>
+            Exportar CSV
+          </button>
+        </div>
+      </header>
+
+      <section id="overviewSection" class="section">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 mb-6">
+          <div class="glass rounded-3xl p-6">
+            <p class="text-[#68829e] text-sm">Embaixadores</p>
+            <h2 id="totalEmbaixadores" class="text-4xl font-extrabold mt-3">0</h2>
+          </div>
+
+          <div class="glass rounded-3xl p-6">
+            <p class="text-[#68829e] text-sm">DRs Ativas</p>
+            <h2 id="totalDRs" class="text-4xl font-extrabold mt-3">0</h2>
+          </div>
+
+          <div class="glass rounded-3xl p-6">
+            <p class="text-[#68829e] text-sm">Regiões</p>
+            <h2 id="totalRegioes" class="text-4xl font-extrabold mt-3">0</h2>
+          </div>
+
+          <div class="glass rounded-3xl p-6">
+            <p class="text-[#68829e] text-sm">Unidades</p>
+            <h2 id="totalUnidades" class="text-4xl font-extrabold mt-3">0</h2>
+          </div>
+
+          <div class="glass rounded-3xl p-6">
+            <p class="text-[#68829e] text-sm">Saúde dos Dados</p>
+            <h2 id="healthScore" class="text-3xl font-extrabold mt-3 text-[#ef5e31]">0%</h2>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div class="glass rounded-3xl p-6">
+            <h3 class="text-xl font-bold mb-4">Distribuição de Perfis</h3>
+            <div class="h-[340px]">
+              <canvas id="donutChart"></canvas>
+            </div>
+          </div>
+
+          <div class="glass rounded-3xl p-6">
+            <h3 class="text-xl font-bold mb-4">Ranking de DRs</h3>
+            <div class="h-[340px]">
+              <canvas id="drChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="geoSection" class="section hidden">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div class="glass rounded-3xl p-6">
+            <h3 class="text-xl font-bold mb-4">Distribuição por UF</h3>
+            <div class="h-[420px]">
+              <canvas id="ufChart"></canvas>
+            </div>
+          </div>
+
+          <div class="glass rounded-3xl p-6">
+            <h3 class="text-xl font-bold mb-4">Distribuição Regional</h3>
+            <div class="h-[420px]">
+              <canvas id="regionChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="specialitySection" class="section hidden">
+        <div class="glass rounded-3xl p-6 mb-6">
+          <h3 class="text-xl font-bold mb-4">Cursos e Áreas</h3>
+          <div class="h-[360px]">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h3 class="text-2xl font-bold">Treemap de Especialidades</h3>
+              <p class="text-[#68829e]">Cursos e áreas mais representativas</p>
+            </div>
+          </div>
+
+          <div id="treemapContainer" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4"></div>
+        </div>
+      </section>
+
+      <section id="tableSection" class="section hidden">
+        <div class="glass rounded-3xl p-6">
+          <div class="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between mb-6">
+            <div>
+              <h2 class="text-2xl font-bold">Talentos da Rede</h2>
+              <p class="text-[#68829e]">Pesquisa em tempo real</p>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-4">
+              <div class="glass rounded-2xl px-4 py-3 flex items-center gap-3">
+                <i class="fa-solid fa-magnifying-glass text-[#68829e]"></i>
+                <input type="text" id="searchInput" placeholder="Pesquisar..." class="bg-transparent outline-none text-sm">
+              </div>
+
+              <select id="drFilter" class="glass rounded-2xl px-4 py-3 bg-transparent border border-[#dbe5f0] outline-none">
+                <option value="all">Todas as DRs</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-auto max-h-[650px] rounded-2xl">
+            <table class="w-full min-w-[1050px]">
+              <thead class="sticky top-0 bg-[#f7fbff] backdrop-blur-xl">
+                <tr class="text-left text-[#1a4b9f] text-sm border-b border-[#ecf1f7]">
+                  <th class="p-4">Nome</th>
+                  <th class="p-4">DR</th>
+                  <th class="p-4">Região</th>
+                  <th class="p-4">UF</th>
+                  <th class="p-4">Unidade</th>
+                  <th class="p-4">Perfil</th>
+                  <th class="p-4">Especialidade</th>
+                  <th class="p-4">Email</th>
+                  <th class="p-4 text-center">WhatsApp</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'embaixadoresData';
+    const DEFAULT_CSV_PATH = 'Base%20de%20dados%20-%20Embaixadores%20Saga%20SENAI%202026%20-%20BASE_BI_EMBAIXADORES.csv';
+    const chartColors = ['#1a4b9f', '#ef5e31', '#52AE32', '#008BD2', '#6CC2BA', '#7c8fb0', '#ffb38c'];
+
+    let originalData = [];
+    let filteredData = [];
+    let donutChart = null;
+    let areaChart = null;
+    let drChart = null;
+    let ufChart = null;
+    let regionChart = null;
+
+    function cleanText(value) {
+      if (value === undefined || value === null) return '';
+
+      return String(value)
+        .replace(/\uFEFF/g, '')
+        .trim()
+        .replace(/\s+/g, ' ');
+    }
+
+    function normalizeKey(value) {
+      return cleanText(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    }
+
+    function getField(row, aliases) {
+      const entries = Object.entries(row);
+      const normalizedAliases = aliases.map(normalizeKey);
+      const found = entries.find(([key]) => normalizedAliases.includes(normalizeKey(key)));
+
+      return found ? cleanText(found[1]) : '';
+    }
+
+    function normalizePhone(phone) {
+      return String(phone || '').replace(/\D/g, '');
+    }
+
+    function escapeHTML(value) {
+      return cleanText(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function uniqueValues(data, field) {
+      return [...new Set(data.map(item => item[field]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    }
+
+    function countBy(data, field) {
+      return data.reduce((acc, item) => {
+        const key = item[field] || 'Não informado';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    function getSpecialty(item) {
+      return item.Info_Junior_Curso || item.Info_Senior_Area_Atuacao || item.Detalhe_Perfil_Consolidado || 'Não informado';
+    }
+
+    function processRows(rows) {
+      return rows
+        .map(row => ({
+          ID_Registro: getField(row, ['ID_Registro', 'ID Registro', 'ID']),
+          DR: getField(row, ['DR']),
+          UF: getField(row, ['UF']),
+          Região: getField(row, ['Região', 'Regiao', 'RegiÃ£o']),
+          Unidade: getField(row, ['Unidade']),
+          Perfil_Normalizado: getField(row, ['Perfil_Normalizado', 'Perfil Normalizado', 'Perfil']),
+          Nome_Embaixador: getField(row, ['Nome_Embaixador', 'Nome Embaixador', 'Nome']),
+          Email: getField(row, ['Email', 'E-mail']),
+          WhatsApp: getField(row, ['WhatsApp', 'Whatsapp', 'Telefone', 'Celular']),
+          Info_Junior_Curso: getField(row, ['Info_Junior_Curso', 'Info Junior Curso', 'Curso']),
+          Info_Senior_Area_Atuacao: getField(row, ['Info_Senior_Area_Atuacao', 'Info Senior Area Atuacao', 'Área de Atuação', 'Area de Atuacao', 'Ãrea de AtuaÃ§Ã£o']),
+          Detalhe_Perfil_Consolidado: getField(row, ['Detalhe_Perfil_Consolidado', 'Detalhe Perfil Consolidado'])
+        }))
+        .filter(item => Object.values(item).some(Boolean));
+    }
+
+    function loadRows(rows, shouldSave = true) {
+      originalData = processRows(rows);
+      filteredData = [...originalData];
+
+      if (shouldSave) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(originalData));
+      }
+
+      document.getElementById('emptyState').style.display = originalData.length ? 'none' : 'flex';
+      populateFilters(originalData);
+      applyFilters();
+    }
+
+    function parseCSV(source, shouldSave = true) {
+      Papa.parse(source, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: header => cleanText(header),
+        complete: results => {
+          if (results.errors.length) {
+            console.warn('Erros encontrados no CSV:', results.errors);
+          }
+
+          loadRows(results.data, shouldSave);
+        },
+        error: error => {
+          console.error('Falha ao ler CSV:', error);
+          alert('Não foi possível ler o CSV. Verifique o arquivo e tente novamente.');
+        }
+      });
+    }
+
+    function handleCSVUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      parseCSV(file, true);
+      event.target.value = '';
+    }
+
+    async function loadDefaultCSV() {
+      try {
+        const response = await fetch(DEFAULT_CSV_PATH, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const csvText = await response.text();
+        parseCSV(csvText, true);
+        return true;
+      } catch (error) {
+        console.warn('CSV padrão não foi carregado automaticamente:', error);
+        return false;
+      }
+    }
+
+    function populateFilters(data) {
+      populateSelect('drFilter', uniqueValues(data, 'DR'), 'Todas as DRs');
+      populateSelect('regiaoFilter', uniqueValues(data, 'Região'), 'Todas as regiões');
+      populateSelect('ufFilter', uniqueValues(data, 'UF'), 'Todos os UFs');
+      populateSelect('unidadeFilter', uniqueValues(data, 'Unidade'), 'Todas as unidades');
+    }
+
+    function populateSelect(id, values, label) {
+      const select = document.getElementById(id);
+      if (!select) return;
+
+      const currentValue = select.value;
+      select.innerHTML = '';
+
+      const defaultOption = document.createElement('option');
+      defaultOption.value = 'all';
+      defaultOption.textContent = label;
+      select.appendChild(defaultOption);
+
+      values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+
+      select.value = values.includes(currentValue) ? currentValue : 'all';
+    }
+
+    function applyFilters() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const dr = document.getElementById('drFilter').value;
+      const regiao = document.getElementById('regiaoFilter').value;
+      const uf = document.getElementById('ufFilter').value;
+      const unidade = document.getElementById('unidadeFilter').value;
+
+      filteredData = originalData.filter(item => {
+        const matchesDR = dr === 'all' || item.DR === dr;
+        const matchesRegiao = regiao === 'all' || item.Região === regiao;
+        const matchesUF = uf === 'all' || item.UF === uf;
+        const matchesUnidade = unidade === 'all' || item.Unidade === unidade;
+        const matchesSearch = !search || Object.values(item).join(' ').toLowerCase().includes(search);
+
+        return matchesDR && matchesRegiao && matchesUF && matchesUnidade && matchesSearch;
+      });
+
+      updateDashboard(filteredData);
+    }
+
+    function exportCSV() {
+      if (!filteredData.length) {
+        alert('Nenhum dado disponível para exportar.');
+        return;
+      }
+
+      const csv = Papa.unparse(filteredData);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.download = 'embaixadores_filtrados.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function updateDashboard(data) {
+      updateKPIs(data);
+      renderCharts(data);
+      renderTable(data);
+    }
+
+    function updateKPIs(data) {
+      const total = data.length;
+      const emails = data.filter(item => item.Email).length;
+      const whats = data.filter(item => item.WhatsApp).length;
+      const score = total ? Math.round(((emails + whats) / (total * 2)) * 100) : 0;
+
+      document.getElementById('totalEmbaixadores').innerText = total;
+      document.getElementById('totalDRs').innerText = uniqueValues(data, 'DR').length;
+      document.getElementById('totalRegioes').innerText = uniqueValues(data, 'Região').length;
+      document.getElementById('totalUnidades').innerText = uniqueValues(data, 'Unidade').length;
+      document.getElementById('healthScore').innerText = `${score}%`;
+    }
+
+    function renderCharts(data) {
+      renderDonutChart(data);
+      renderAreaChart(data);
+      renderDRChart(data);
+      renderUFChart(data);
+      renderRegionChart(data);
+      renderTreemap(data);
+    }
+
+    function baseChartOptions(extra = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              color: '#68829e'
+            }
+          }
+        },
+        ...extra
+      };
+    }
+
+    function chartCanvas(id) {
+      return document.getElementById(id);
+    }
+
+    function renderDonutChart(data) {
+      const perfis = countBy(data, 'Perfil_Normalizado');
+      if (donutChart) donutChart.destroy();
+
+      donutChart = new Chart(chartCanvas('donutChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(perfis),
+          datasets: [{
+            data: Object.values(perfis),
+            backgroundColor: chartColors,
+            borderWidth: 0
+          }]
+        },
+        options: baseChartOptions()
+      });
+    }
+
+    function renderAreaChart(data) {
+      const ranking = {};
+
+      data.forEach(item => {
+        const key = getSpecialty(item);
+        ranking[key] = (ranking[key] || 0) + 1;
+      });
+
+      const sorted = Object.entries(ranking).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      if (areaChart) areaChart.destroy();
+
+      areaChart = new Chart(chartCanvas('barChart'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(item => item[0]),
+          datasets: [{
+            data: sorted.map(item => item[1]),
+            backgroundColor: '#ef5e31',
+            borderRadius: 10
+          }]
+        },
+        options: baseChartOptions({
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: '#425d78' }, grid: { color: '#ecf1f7' } },
+            y: { ticks: { color: '#425d78' }, grid: { color: '#ecf1f7' } }
+          }
+        })
+      });
+    }
+
+    function renderDRChart(data) {
+      const sorted = Object.entries(countBy(data, 'DR')).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      if (drChart) drChart.destroy();
+
+      drChart = new Chart(chartCanvas('drChart'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(item => item[0]),
+          datasets: [{
+            data: sorted.map(item => item[1]),
+            backgroundColor: '#1a4b9f',
+            borderRadius: 10
+          }]
+        },
+        options: baseChartOptions({
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: '#425d78' }, grid: { color: '#ecf1f7' } },
+            y: { ticks: { color: '#425d78' }, grid: { display: false } }
+          }
+        })
+      });
+    }
+
+    function renderUFChart(data) {
+      const sorted = Object.entries(countBy(data, 'UF')).sort((a, b) => b[1] - a[1]);
+      if (ufChart) ufChart.destroy();
+
+      ufChart = new Chart(chartCanvas('ufChart'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(item => item[0]),
+          datasets: [{
+            data: sorted.map(item => item[1]),
+            backgroundColor: sorted.map(item => item[1] > 40 ? '#1a4b9f' : item[1] > 20 ? '#ef5e31' : '#008BD2'),
+            borderRadius: 10
+          }]
+        },
+        options: baseChartOptions({
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: '#425d78' }, grid: { display: false } },
+            y: { ticks: { color: '#425d78' }, grid: { color: '#ecf1f7' } }
+          }
+        })
+      });
+    }
+
+    function renderRegionChart(data) {
+      const regions = countBy(data, 'Região');
+      if (regionChart) regionChart.destroy();
+
+      regionChart = new Chart(chartCanvas('regionChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(regions),
+          datasets: [{
+            data: Object.values(regions),
+            backgroundColor: chartColors,
+            borderWidth: 0
+          }]
+        },
+        options: baseChartOptions({
+          onClick: (event, elements) => {
+            if (!elements.length) return;
+
+            const region = Object.keys(regions)[elements[0].index];
+            document.getElementById('regiaoFilter').value = region;
+            applyFilters();
+          }
+        })
+      });
+    }
+
+    function renderTreemap(data) {
+      const container = document.getElementById('treemapContainer');
+      const ranking = {};
+
+      data.forEach(item => {
+        const key = getSpecialty(item);
+        ranking[key] = (ranking[key] || 0) + 1;
+      });
+
+      const sorted = Object.entries(ranking).sort((a, b) => b[1] - a[1]).slice(0, 15);
+
+      if (!sorted.length) {
+        container.innerHTML = '<div class="col-span-full text-[#68829e]">Nenhum dado para exibir.</div>';
+        return;
+      }
+
+      const max = Math.max(...sorted.map(item => item[1]));
+
+      container.innerHTML = sorted.map(([label, value], index) => {
+        const intensity = Math.max(0.16, value / max);
+
+        return `
+          <div class="hover-card rounded-2xl p-4 min-h-[120px] flex flex-col justify-between"
+            style="background: linear-gradient(135deg, rgba(26, 75, 159, ${Math.max(0.08, intensity * 0.18)}), rgba(239, 94, 49, ${Math.max(0.06, intensity * 0.12)})); border: 1px solid rgba(26,75,159,0.10); color: #16324f;">
+            <div class="text-sm" style="color:#68829e;">#${index + 1}</div>
+            <div class="font-bold text-lg leading-tight">${escapeHTML(label)}</div>
+            <div class="text-2xl font-extrabold">${value}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tableBody');
+
+      if (!data.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td class="p-6 text-center text-[#68829e]" colspan="9">Nenhum registro encontrado.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => {
+        const phone = normalizePhone(item.WhatsApp);
+        const specialty = getSpecialty(item);
+
+        return `
+          <tr class="table-row border-b border-[#ecf1f7]">
+            <td class="p-4">${escapeHTML(item.Nome_Embaixador || '-')}</td>
+            <td class="p-4">${escapeHTML(item.DR || '-')}</td>
+            <td class="p-4">${escapeHTML(item.Região || '-')}</td>
+            <td class="p-4">${escapeHTML(item.UF || '-')}</td>
+            <td class="p-4">${escapeHTML(item.Unidade || '-')}</td>
+            <td class="p-4">${escapeHTML(item.Perfil_Normalizado || '-')}</td>
+            <td class="p-4">${escapeHTML(specialty)}</td>
+            <td class="p-4">${item.Email ? `<a class="text-[#1a4b9f] hover:underline" href="mailto:${escapeHTML(item.Email)}">${escapeHTML(item.Email)}</a>` : '-'}</td>
+            <td class="p-4 text-center">
+              ${phone ? `<a href="https://wa.me/55${phone}" target="_blank" rel="noopener noreferrer" class="text-[#ef5e31]"><i class="fa-brands fa-whatsapp"></i></a>` : '-'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function showSection(sectionId) {
+      document.querySelectorAll('.section').forEach(section => {
+        section.classList.toggle('hidden', section.id !== sectionId);
+      });
+
+      document.querySelectorAll('.sidebar-btn').forEach(button => {
+        button.classList.toggle('active', button.dataset.section === sectionId);
+      });
+    }
+
+    function bindEvents() {
+      document.getElementById('csvFile').addEventListener('change', handleCSVUpload);
+      document.getElementById('csvFileTop').addEventListener('change', handleCSVUpload);
+      document.getElementById('exportCSV').addEventListener('click', exportCSV);
+
+      ['searchInput', 'drFilter', 'regiaoFilter', 'ufFilter', 'unidadeFilter'].forEach(id => {
+        document.getElementById(id).addEventListener('input', applyFilters);
+        document.getElementById(id).addEventListener('change', applyFilters);
+      });
+
+      document.querySelectorAll('.sidebar-btn').forEach(button => {
+        button.addEventListener('click', () => showSection(button.dataset.section));
+      });
+    }
+
+    function loadSavedData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+
+      try {
+        originalData = processRows(JSON.parse(saved));
+        filteredData = [...originalData];
+
+        document.getElementById('emptyState').style.display = 'none';
+        populateFilters(originalData);
+        updateDashboard(filteredData);
+      } catch (error) {
+        console.warn('Dados salvos inválidos. O cache local foi limpo.', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      bindEvents();
+
+      const loadedDefaultCSV = await loadDefaultCSV();
+      if (!loadedDefaultCSV) {
+        loadSavedData();
+      }
+    });
+  </script>
+</body>
+</html>
